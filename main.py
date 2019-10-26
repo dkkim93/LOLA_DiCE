@@ -3,8 +3,6 @@ import argparse
 import torch
 import random
 import numpy as np
-import matplotlib.pyplot as plt
-# from envs import IPD
 from trainer import train
 from misc.utils import set_log, make_env
 from policy.agent import Agent
@@ -31,23 +29,13 @@ def main(args):
     torch.manual_seed(args.seed)
     env.seed(args.seed)
 
+    # Initialize agents
+    agents = [
+        Agent(env, log, tb_writer, args, name="agent" + str(i_agent), i_agent=i_agent)
+        for i_agent in range(args.n_agent)]
+
     # Start train
-    colors = ['b', 'c', 'm', 'r']
-
-    for i in range(4):
-        torch.manual_seed(args.seed)
-        scores = train(
-            Agent(env, args), 
-            Agent(env, args), 
-            i, 
-            args, 
-            env)
-        plt.plot(scores, colors[i], label=str(i) + " lookaheads")
-
-    plt.legend()
-    plt.xlabel('rollouts', fontsize=20)
-    plt.ylabel('joint score', fontsize=20)
-    plt.show()
+    train(agents[0], agents[1], args, env)
 
 
 if __name__ == "__main__":
@@ -57,6 +45,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n-agent", type=int, default=2, 
         help="Number of agent")
+    parser.add_argument(
+        "--n-lookahead", type=int, default=1, 
+        help="Number of lookahead")
     parser.add_argument(
         "--algorithm", type=str, choices=["standard", "dice"],
         default="dice", help="Learning algorithm to train agent")

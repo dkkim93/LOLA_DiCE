@@ -23,4 +23,13 @@ cd $DIR
 
 # Begin experiment
 python3.6 main.py \
---env-name "IPD-v0"
+--env-name "IPD-v0" \
+--n-lookahead 0
+
+python3.6 main.py \
+--env-name "IPD-v0" \
+--n-lookahead 1
+
+python3.6 main.py \
+--env-name "IPD-v0" \
+--n-lookahead 2

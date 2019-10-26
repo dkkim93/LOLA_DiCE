@@ -31,18 +31,3 @@ def make_env(args):
     env._max_episode_steps = args.ep_max_timesteps
 
     return env
-
-
-def make_env_fn(args):
-    return make_env
-
-
-def set_policy(env, tb_writer, log, args, name, i_agent):
-    if name == "agent":
-        from policy.agent import Agent
-        policy = Agent(
-            env=env, tb_writer=tb_writer, log=log, args=args, name=name + str(i_agent), i_agent=i_agent)
-    else:
-        raise ValueError("Invalid name")
-
-    return policy

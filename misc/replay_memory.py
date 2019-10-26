@@ -43,7 +43,7 @@ class ReplayMemory():
 
         return -dice_objective
 
-    def value_loss(self):
+    def critic_loss(self):
         values = torch.stack(self.values, dim=1)
         rewards = torch.stack(self.rewards, dim=1)
         return torch.mean((rewards - values)**2)
