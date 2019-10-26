@@ -12,8 +12,8 @@ class Agent():
         self.theta = nn.Parameter(torch.zeros(5, requires_grad=True))
         self.values = nn.Parameter(torch.zeros(5, requires_grad=True))
 
-        self.theta_optimizer = torch.optim.Adam((self.theta,), lr=args.lr_out)
-        self.value_optimizer = torch.optim.Adam((self.values,), lr=args.lr_v)
+        self.theta_optimizer = torch.optim.Adam((self.theta,), lr=args.actor_lr_outer)
+        self.value_optimizer = torch.optim.Adam((self.values,), lr=args.critic_lr)
 
     def theta_update(self, objective):
         self.theta_optimizer.zero_grad()
@@ -28,7 +28,7 @@ class Agent():
     def in_lookahead(self, other_theta, other_values):
         (s1, s2), _ = self.env.reset()
         other_memory = ReplayMemory(self.args)
-        for t in range(self.args.len_rollout):
+        for t in range(self.args.ep_max_timesteps):
             a1, lp1, v1 = self.act(s1, self.theta, self.values)
             a2, lp2, v2 = self.act(s2, other_theta, other_values)
             (s1, s2), (r1, r2), _, _ = self.env.step((a1, a2))
@@ -41,7 +41,7 @@ class Agent():
     def out_lookahead(self, other_theta, other_values):
         (s1, s2), _ = self.env.reset()
         memory = ReplayMemory(self.args)
-        for t in range(self.args.len_rollout):
+        for t in range(self.args.ep_max_timesteps):
             a1, lp1, v1 = self.act(s1, self.theta, self.values)
             a2, lp2, v2 = self.act(s2, other_theta, other_values)
             (s1, s2), (r1, r2), _, _ = self.env.step((a1, a2))

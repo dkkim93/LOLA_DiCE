@@ -23,7 +23,7 @@ class ReplayMemory():
         rewards = torch.stack(self.rewards, dim=1)
 
         # apply discount:
-        cum_discount = torch.cumprod(self.args.gamma * torch.ones(*rewards.size()), dim=1) / self.args.gamma
+        cum_discount = torch.cumprod(self.args.discount * torch.ones(*rewards.size()), dim=1) / self.args.discount
         discounted_rewards = rewards * cum_discount
         discounted_values = values * cum_discount
 

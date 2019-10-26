@@ -22,4 +22,4 @@ print_header "Training network"
 cd $DIR
 
 # Begin experiment
-python3.6 ipd_dice.py
+python3.6 main.py

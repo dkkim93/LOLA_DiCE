@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 
-def evaluate(agent1, agent2, ipd, hp):
+def evaluate(agent1, agent2, ipd, args):
     # just to evaluate progress:
     (s1, s2), _ = ipd.reset()
     score1 = 0
@@ -10,21 +10,21 @@ def evaluate(agent1, agent2, ipd, hp):
 
     theta1, values1 = agent1.theta, agent1.values
     theta2, values2 = agent2.theta, agent2.values
-    for t in range(hp.len_rollout):
+    for t in range(args.ep_max_timesteps):
         a1, lp1, v1 = agent1.act(s1, theta1, values1)
         a2, lp2, v2 = agent2.act(s2, theta2, values2)
         (s1, s2), (r1, r2), _, _ = ipd.step((a1, a2))
         # cumulate scores
-        score1 += np.mean(r1) / float(hp.len_rollout)
-        score2 += np.mean(r2) / float(hp.len_rollout)
+        score1 += np.mean(r1) / float(args.ep_max_timesteps)
+        score2 += np.mean(r2) / float(args.ep_max_timesteps)
     return (score1, score2)
 
 
-def train(agent1, agent2, n_lookaheads, hp, ipd):
+def train(agent1, agent2, n_lookaheads, args, ipd):
     joint_scores = []
     print("start iterations with", n_lookaheads, "lookaheads:")
 
-    for update in range(hp.n_update):
+    for update in range(200):
         # copy other's parameters:
         theta1_ = torch.tensor(agent1.theta.detach(), requires_grad=True)
         values1_ = torch.tensor(agent1.values.detach(), requires_grad=True)
@@ -36,15 +36,15 @@ def train(agent1, agent2, n_lookaheads, hp, ipd):
             grad2 = agent1.in_lookahead(theta2_, values2_)
             grad1 = agent2.in_lookahead(theta1_, values1_)
             # update other's theta
-            theta2_ = theta2_ - hp.lr_in * grad2
-            theta1_ = theta1_ - hp.lr_in * grad1
+            theta2_ = theta2_ - args.actor_lr_inner * grad2
+            theta1_ = theta1_ - args.actor_lr_inner * grad1
 
         # update own parameters from out_lookahead:
         agent1.out_lookahead(theta2_, values2_)
         agent2.out_lookahead(theta1_, values1_)
 
         # evaluate progress:
-        score = evaluate(agent1, agent2, ipd, hp)
+        score = evaluate(agent1, agent2, ipd, args)
         joint_scores.append(0.5 * (score[0] + score[1]))
 
         # print
