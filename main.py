@@ -1,14 +1,38 @@
+import os
 import argparse
 import torch
+import random
+import numpy as np
 import matplotlib.pyplot as plt
-from envs import IPD
+# from envs import IPD
 from trainer import train
+from misc.utils import set_log, make_env
 from policy.agent import Agent
+from tensorboardX import SummaryWriter
 
 
 def main(args):
+    # Create directories
+    if not os.path.exists("./logs"):
+        os.makedirs("./logs")
+    if not os.path.exists("./pytorch_models"):
+        os.makedirs("./pytorch_models")
+
+    # Set logs
+    tb_writer = SummaryWriter('./logs/tb_{0}'.format(args.log_name))
+    log = set_log(args)
+
+    # Create env
+    env = make_env(args)
+
+    # Set seeds
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    env.seed(args.seed)
+
+    # Start train
     colors = ['b', 'c', 'm', 'r']
-    env = IPD(args.ep_max_timesteps, args.batch_size)
 
     for i in range(4):
         torch.manual_seed(args.seed)
