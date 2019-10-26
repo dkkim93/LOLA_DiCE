@@ -17,7 +17,7 @@ class Agent(object):
         self._set_policy()
 
     def _set_dim(self):
-        self.actor_input_dim = self.env.state_space[self.i_agent].n
+        self.actor_input_dim = self.env.state_space[0].n
         self.critic_input_dim = self.actor_input_dim
 
         self.log[self.args.log_name].info("[{}] Actor input dim: {}".format(
@@ -43,26 +43,44 @@ class Agent(object):
         self.critic_optimizer.step()
 
     def in_lookahead(self, other_actor, other_critic):
-        (s1, s2), _ = self.env.reset()
         other_memory = ReplayMemory(self.args)
-        for t in range(self.args.ep_max_timesteps):
-            a1, lp1, v1 = self.act(s1, self.actor, self.critic)
-            a2, lp2, v2 = self.act(s2, other_actor, other_critic)
-            (s1, s2), (r1, r2), _, _ = self.env.step((a1, a2))
-            other_memory.add(lp2, lp1, v2, torch.from_numpy(r2).float())
+
+        obs1, obs2 = self.env.reset()
+        for timestep in range(self.args.ep_max_timesteps):
+            # Get actions
+            action1, logprob1, value1 = self.act(obs1, self.actor, self.critic)
+            action2, logprob2, value2 = self.act(obs2, other_actor, other_critic)
+
+            # Take step in the environment
+            (next_obs1, next_obs2), (reward1, reward2), _, _ = self.env.step((action1, action2))
+
+            # Add to memory
+            other_memory.add(logprob2, logprob1, value2, torch.from_numpy(reward2).float())
+
+            # For next timestep
+            obs1, obs2 = next_obs1, next_obs2
 
         other_objective = other_memory.dice_objective()
         grad = self.get_gradient(other_objective, other_actor)
         return grad
 
     def out_lookahead(self, other_actor, other_critic):
-        (s1, s2), _ = self.env.reset()
         memory = ReplayMemory(self.args)
-        for t in range(self.args.ep_max_timesteps):
-            a1, lp1, v1 = self.act(s1, self.actor, self.critic)
-            a2, lp2, v2 = self.act(s2, other_actor, other_critic)
-            (s1, s2), (r1, r2), _, _ = self.env.step((a1, a2))
-            memory.add(lp1, lp2, v1, torch.from_numpy(r1).float())
+
+        obs1, obs2 = self.env.reset()
+        for timestep in range(self.args.ep_max_timesteps):
+            # Get actions
+            action1, logprob1, value1 = self.act(obs1, self.actor, self.critic)
+            action2, logprob2, value2 = self.act(obs2, other_actor, other_critic)
+
+            # Take step in the environment
+            (next_obs1, next_obs2), (reward1, reward2), _, _ = self.env.step((action1, action2))
+
+            # Add to memory
+            memory.add(logprob1, logprob2, value1, torch.from_numpy(reward1).float())
+
+            # For next timestep
+            obs1, obs2 = next_obs1, next_obs2
 
         # Update actor
         objective = memory.dice_objective()
@@ -77,9 +95,9 @@ class Agent(object):
         probs = torch.sigmoid(actor)[batch_states]
         m = Bernoulli(1 - probs)
         actions = m.sample()
-        log_probs_actions = m.log_prob(actions)
+        logprobs = m.log_prob(actions)
 
-        return actions.numpy().astype(int), log_probs_actions, critic[batch_states]
+        return actions.numpy().astype(int), logprobs, critic[batch_states]
 
     def get_gradient(self, objective, actor):
         # create differentiable gradient for 2nd orders:

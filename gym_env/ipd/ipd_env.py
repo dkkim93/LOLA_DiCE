@@ -21,26 +21,20 @@ class IPDEnv(gym.Env):
         """Payout matrix from agent 0's perspective.
         By default, the payout matrix for agent 1 is 
         the transpose of agent 0's matrix"""
-        # self.payout_matrix = np.array([
-        #     [-1., -3.], 
-        #     [0., -2.]], dtype=np.float32)
         self.payout_matrix = np.array([
-            [-2, 0],
-            [-3, -1]])
+            [-2., 0.],
+            [-3., -1.]], dtype=np.float32)
 
     def _set_states(self):
-        # self.states = np.array([
-        #     [1, 2],
-        #     [3, 4]], dtype=np.int64)
         self.states = np.array([
             [1, 2],
-            [3, 4]])
+            [3, 4]], dtype=np.int64)
 
     def reset(self):
-        observation = [
+        observations = [
             np.zeros(self.args.batch_size), 
             np.zeros(self.args.batch_size)]
-        return observation, {}
+        return observations
 
     def step(self, action):
         assert len(action) == 2, "Only two agents are supported in this domain"
@@ -49,10 +43,10 @@ class IPDEnv(gym.Env):
         r1 = self.payout_matrix[ac1, ac0]
         s0 = self.states[ac0, ac1]
         s1 = self.states[ac1, ac0]
-        observation = [s0, s1]
-        reward = [r0, r1]
+        observations = [s0, s1]
+        rewards = [r0, r1]
         done = False
-        return observation, reward, done, {}
+        return observations, rewards, done, {}
 
     def render(self, mode='human', close=False):
         raise NotImplementedError()

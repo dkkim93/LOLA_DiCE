@@ -17,8 +17,8 @@ def main(args):
         os.makedirs("./pytorch_models")
 
     # Set logs
-    tb_writer = SummaryWriter('./logs/tb_{0}'.format(args.log_name))
     log = set_log(args)
+    tb_writer = SummaryWriter('./logs/tb_{0}'.format(args.log_name))
 
     # Create env
     env = make_env(args)
@@ -30,12 +30,11 @@ def main(args):
     env.seed(args.seed)
 
     # Initialize agents
-    agents = [
-        Agent(env, log, tb_writer, args, name="agent" + str(i_agent), i_agent=i_agent)
-        for i_agent in range(args.n_agent)]
+    agent1 = Agent(env, log, tb_writer, args, name="agent1", i_agent=1)
+    agent2 = Agent(env, log, tb_writer, args, name="agent2", i_agent=2)
 
     # Start train
-    train(agents[0], agents[1], args, env)
+    train(agent1, agent2, env, log, tb_writer, args)
 
 
 if __name__ == "__main__":
