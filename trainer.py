@@ -27,26 +27,22 @@ def evaluate(agent1, agent2, env, args):
 
 
 def train(agent1, agent2, env, log, tb_writer, args):
-    print("start iterations with", args.n_lookahead, "lookaheads:")
-
-    joint_scores = []
     for iteration in range(200):
-        # Copy other's parameters
-        actor1_ = torch.tensor(agent1.actor.detach(), requires_grad=True)
-        critic1_ = torch.tensor(agent1.critic.detach(), requires_grad=True)
-
+        # Copy other agent's parameters
         actor2_ = torch.tensor(agent2.actor.detach(), requires_grad=True)
         critic2_ = torch.tensor(agent2.critic.detach(), requires_grad=True)
 
+        actor1_ = torch.tensor(agent1.actor.detach(), requires_grad=True)
+        critic1_ = torch.tensor(agent1.critic.detach(), requires_grad=True)
+
         # Perform inner-loop update
         for _ in range(args.n_lookahead):
-            # Estimate other's gradients from in_lookahead
-            grad2 = agent1.in_lookahead(actor2_, critic2_)
-            grad1 = agent2.in_lookahead(actor1_, critic1_)
-
-            # Update other's actor
-            actor2_ = actor2_ - args.actor_lr_inner * grad2
-            actor1_ = actor1_ - args.actor_lr_inner * grad1
+            actor2_ = agent1.in_lookahead(
+                opponent_actor=actor2_, 
+                opponent_critic=critic2_)
+            actor1_ = agent2.in_lookahead(
+                opponent_actor=actor1_, 
+                opponent_critic=critic1_)
 
         # Perform outer-loop update
         agent1.out_lookahead(actor2_, critic2_)
@@ -54,18 +50,16 @@ def train(agent1, agent2, env, log, tb_writer, args):
 
         # Evaluate progress
         score1, score2 = evaluate(agent1, agent2, env, args)
-        joint_scores.append(0.5 * (score1 + score2))
 
         # Log performance
         if iteration % 10 == 0:
             log[args.log_name].info("At iteration {}, returns: {:.3f}, {:.3f}".format(
                 iteration, score1, score2))
 
-            # Tit-for-tat
-            prob1 = [p.item() for p in torch.sigmoid(agent1.actor)]
-            prob2 = [p.item() for p in torch.sigmoid(agent2.actor)]
+            # # Tit-for-tat
+            # TODO
+            # prob1 = [p.item() for p in torch.sigmoid(agent1.actor)]
+            # prob2 = [p.item() for p in torch.sigmoid(agent2.actor)]
 
-            print('policy (agent1) = {%.3f, %.3f, %.3f, %.3f, %.3f}' % (prob1[0], prob1[1], prob1[2], prob1[3], prob1[4]))
-            print('(agent2) = {%.3f, %.3f, %.3f, %.3f, %.3f}' % (prob2[0], prob2[1], prob2[2], prob2[3], prob2[4]))
-
-    return joint_scores
+            # print('policy (agent1) = {%.3f, %.3f, %.3f, %.3f, %.3f}' % (prob1[0], prob1[1], prob1[2], prob1[3], prob1[4]))
+            # print('(agent2) = {%.3f, %.3f, %.3f, %.3f, %.3f}' % (prob2[0], prob2[1], prob2[2], prob2[3], prob2[4]))

@@ -5,7 +5,7 @@ import random
 import numpy as np
 from trainer import train
 from misc.utils import set_log, make_env
-from policy.agent import Agent
+from dice.agent import Agent
 from tensorboardX import SummaryWriter
 
 
