@@ -46,3 +46,10 @@ class AgentBase(object):
         logprob = bernoulli.log_prob(action)
 
         return action.numpy().astype(int), logprob, critic[obs]
+
+    def get_action_prob(self, obs):
+        obs = torch.from_numpy(obs).long()
+        prob = torch.sigmoid(self.actor)[obs]
+        cooperate_prob = 1. - prob
+
+        return cooperate_prob.data.numpy().flatten()[0]

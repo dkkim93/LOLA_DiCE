@@ -92,9 +92,9 @@ if __name__ == "__main__":
 
     # Set log name
     args.log_name = \
-        "env::%s_seed::%s_algorithm:%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
+        "env::%s_seed::%s_n_lookahead::%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
         "critic_lr::%s_prefix::%s_log" % (
-            args.env_name, args.seed, args.algorithm, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
+            args.env_name, args.seed, args.n_lookahead, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
             args.critic_lr, args.prefix)
 
     main(args=args)

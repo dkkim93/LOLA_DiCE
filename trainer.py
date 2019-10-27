@@ -2,6 +2,22 @@ import torch
 import numpy as np
 
 
+def tit_for_tat(agent1, agent2, env, log, tb_writer, args, iteration):
+    # Log tit-for-tat
+    for key, value in env.states_dict.items():
+        # Agent 1
+        cooperate_prob = agent1.get_action_prob(value[0])
+        log[args.log_name].info(
+            "Agent1 at {}: Cooperate prob {:.2f} at iteration {}".format(key, cooperate_prob, iteration))
+        tb_writer.add_scalars("debug/" + key, {"agent1": cooperate_prob}, iteration)
+
+        # Agent 2
+        cooperate_prob = agent2.get_action_prob(value[1])
+        log[args.log_name].info(
+            "Agent2 at {}: Cooperate prob {:.2f} at iteration {}".format(key, cooperate_prob, iteration))
+        tb_writer.add_scalars("debug/" + key, {"agent2": cooperate_prob}, iteration)
+
+
 def evaluate(agent1, agent2, env, args):
     actor1, critic1 = agent1.actor, agent1.critic
     actor2, critic2 = agent2.actor, agent2.critic
@@ -47,19 +63,13 @@ def train(agent1, agent2, env, log, tb_writer, args):
         # Perform outer-loop update
         agent1.out_lookahead(actor2_, critic2_)
         agent2.out_lookahead(actor1_, critic1_)
-
-        # Evaluate progress
         score1, score2 = evaluate(agent1, agent2, env, args)
 
         # Log performance
         if iteration % 10 == 0:
             log[args.log_name].info("At iteration {}, returns: {:.3f}, {:.3f}".format(
                 iteration, score1, score2))
-
-            # # Tit-for-tat
-            # TODO
-            # prob1 = [p.item() for p in torch.sigmoid(agent1.actor)]
-            # prob2 = [p.item() for p in torch.sigmoid(agent2.actor)]
-
-            # print('policy (agent1) = {%.3f, %.3f, %.3f, %.3f, %.3f}' % (prob1[0], prob1[1], prob1[2], prob1[3], prob1[4]))
-            # print('(agent2) = {%.3f, %.3f, %.3f, %.3f, %.3f}' % (prob2[0], prob2[1], prob2[2], prob2[3], prob2[4]))
+            tb_writer.add_scalars("train_reward", {"agent1": score1}, iteration)
+            tb_writer.add_scalars("train_reward", {"agent2": score2}, iteration)
+            
+            tit_for_tat(agent1, agent2, env, log, tb_writer, args, iteration)

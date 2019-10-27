@@ -30,6 +30,13 @@ class IPDEnv(gym.Env):
             [1, 2],
             [3, 4]], dtype=np.int64)
 
+        self.states_dict = {}
+        self.states_dict["S0"] = [np.array((0,), dtype=np.int64), np.array((0,), dtype=np.int64)] 
+        self.states_dict["DD"] = [np.array((1,), dtype=np.int64), np.array((1,), dtype=np.int64)]
+        self.states_dict["DC"] = [np.array((2,), dtype=np.int64), np.array((3,), dtype=np.int64)] 
+        self.states_dict["CD"] = [np.array((3,), dtype=np.int64), np.array((2,), dtype=np.int64)] 
+        self.states_dict["CC"] = [np.array((4,), dtype=np.int64), np.array((4,), dtype=np.int64)]  
+
     def reset(self):
         observations = [
             np.zeros(self.args.batch_size), 
