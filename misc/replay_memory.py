@@ -5,33 +5,36 @@ class ReplayMemory():
     def __init__(self, args):
         self.args = args
 
-        self.self_logprobs = []
-        self.other_logprobs = []
-        self.values = []
-        self.rewards = []
+        self.self_logprob = []
+        self.other_logprob = []
+        self.value = []
+        self.reward = []
 
     def add(self, lp, other_lp, v, r):
-        self.self_logprobs.append(lp)
-        self.other_logprobs.append(other_lp)
-        self.values.append(v)
-        self.rewards.append(r)
+        self.self_logprob.append(lp)
+        self.other_logprob.append(other_lp)
+        self.value.append(v)
+        self.reward.append(r)
+
+    def sample(self):
+        return self.self_logprob, self.other_logprob, self.value, self.reward
 
     def dice_objective(self):
-        self_logprobs = torch.stack(self.self_logprobs, dim=1)
-        other_logprobs = torch.stack(self.other_logprobs, dim=1)
-        values = torch.stack(self.values, dim=1)
-        rewards = torch.stack(self.rewards, dim=1)
+        self_logprob = torch.stack(self.self_logprob, dim=1)
+        other_logprob = torch.stack(self.other_logprob, dim=1)
+        value = torch.stack(self.value, dim=1)
+        reward = torch.stack(self.reward, dim=1)
 
         # apply discount:
-        cum_discount = torch.cumprod(self.args.discount * torch.ones(*rewards.size()), dim=1) / self.args.discount
-        discounted_rewards = rewards * cum_discount
-        discounted_values = values * cum_discount
+        cum_discount = torch.cumprod(self.args.discount * torch.ones(*reward.size()), dim=1) / self.args.discount
+        discounted_rewards = reward * cum_discount
+        discounted_values = value * cum_discount
 
-        # stochastics nodes involved in rewards dependencies:
-        dependencies = torch.cumsum(self_logprobs + other_logprobs, dim=1)
+        # stochastics nodes involved in reward dependencies:
+        dependencies = torch.cumsum(self_logprob + other_logprob, dim=1)
 
         # logprob of each stochastic nodes:
-        stochastic_nodes = self_logprobs + other_logprobs
+        stochastic_nodes = self_logprob + other_logprob
 
         # dice objective:
         dice_objective = torch.mean(torch.sum(self.magic_box(dependencies) * discounted_rewards, dim=1))
@@ -42,11 +45,6 @@ class ReplayMemory():
             dice_objective = dice_objective + baseline_term
 
         return -dice_objective
-
-    def critic_loss(self):
-        values = torch.stack(self.values, dim=1)
-        rewards = torch.stack(self.rewards, dim=1)
-        return torch.mean((rewards - values)**2)
 
     def magic_box(self, x):
         return torch.exp(x - x.detach())

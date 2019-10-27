@@ -60,8 +60,10 @@ class Agent(object):
             # For next timestep
             obs1, obs2 = next_obs1, next_obs2
 
-        other_objective = other_memory.dice_objective()
-        grad = self.get_gradient(other_objective, other_actor)
+        # Sample experiences from memory
+        self_logprob, other_logprob, value, reward = other_memory.sample()
+        other_actor_loss = self.get_dice_loss(self_logprob, other_logprob, value, reward)
+        grad = torch.autograd.grad(other_actor_loss, (other_actor), create_graph=True)[0]
         return grad
 
     def out_lookahead(self, other_actor, other_critic):
@@ -82,24 +84,57 @@ class Agent(object):
             # For next timestep
             obs1, obs2 = next_obs1, next_obs2
 
+        # Sample experiences from memory
+        self_logprob, other_logprob, value, reward = memory.sample()
+
         # Update actor
-        objective = memory.dice_objective()
-        self.actor_update(objective)
+        actor_loss = self.get_dice_loss(self_logprob, other_logprob, value, reward)
+        self.actor_update(actor_loss)
 
         # Update critic
-        critic_loss = memory.critic_loss()
+        critic_loss = self.get_critic_loss(value, reward)
         self.critic_update(critic_loss)
 
-    def act(self, batch_states, actor, critic):
-        batch_states = torch.from_numpy(batch_states).long()
-        probs = torch.sigmoid(actor)[batch_states]
-        m = Bernoulli(1 - probs)
-        actions = m.sample()
-        logprobs = m.log_prob(actions)
+    def act(self, obs, actor, critic):
+        obs = torch.from_numpy(obs).long()
+        prob = torch.sigmoid(actor)[obs]
+        m = Bernoulli(1 - prob)
+        action = m.sample()
+        logprob = m.log_prob(action)
 
-        return actions.numpy().astype(int), logprobs, critic[batch_states]
+        return action.numpy().astype(int), logprob, critic[obs]
 
-    def get_gradient(self, objective, actor):
-        # create differentiable gradient for 2nd orders:
-        grad_objective = torch.autograd.grad(objective, (actor), create_graph=True)[0]
-        return grad_objective
+    def get_critic_loss(self, value, reward):
+        value = torch.stack(value, dim=1)
+        reward = torch.stack(reward, dim=1)
+        return torch.mean(pow((reward - value), 2))
+
+    def get_dice_loss(self, self_logprob, other_logprob, value, reward):
+        self_logprob = torch.stack(self_logprob, dim=1)
+        other_logprob = torch.stack(other_logprob, dim=1)
+        value = torch.stack(value, dim=1)
+        reward = torch.stack(reward, dim=1)
+
+        # apply discount:
+        cum_discount = torch.cumprod(self.args.discount * torch.ones(*reward.size()), dim=1) / self.args.discount
+        discounted_rewards = reward * cum_discount
+        discounted_values = value * cum_discount
+
+        # stochastics nodes involved in reward dependencies:
+        dependencies = torch.cumsum(self_logprob + other_logprob, dim=1)
+
+        # logprob of each stochastic nodes:
+        stochastic_nodes = self_logprob + other_logprob
+
+        # dice objective:
+        dice_loss = torch.mean(torch.sum(self.magic_box(dependencies) * discounted_rewards, dim=1))
+
+        if self.args.use_baseline:
+            # variance_reduction:
+            baseline_term = torch.mean(torch.sum((1 - self.magic_box(stochastic_nodes)) * discounted_values, dim=1))
+            dice_loss = dice_loss + baseline_term
+
+        return -dice_loss
+
+    def magic_box(self, x):
+        return torch.exp(x - x.detach())
