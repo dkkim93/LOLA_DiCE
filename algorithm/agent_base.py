@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from torch.distributions import Bernoulli
 
 
@@ -40,25 +41,10 @@ class AgentBase(object):
             loss.backward()
         optimizer.step()
 
-    def act_(self, obs, actor, critic):
-        prob = torch.sigmoid(actor)[obs]
-        bernoulli = Bernoulli(1 - prob)
-        action = bernoulli.sample()
-        logprob = bernoulli.log_prob(action)
-
-        return action.numpy().astype(int), logprob, critic[obs]
-
-    def get_action_prob(self, obs):
-        raise ValueError("used?")
-        obs = torch.from_numpy(obs).long()
-        prob = torch.sigmoid(self.theta)[obs]
-        cooperate_prob = 1. - prob
-
-        return cooperate_prob.data.numpy().flatten()[0]
-
     @staticmethod
     def act(obs, actor, critic):
-        obs = torch.from_numpy(obs).long()
+        if isinstance(obs, np.ndarray):
+            obs = torch.from_numpy(obs).long()
         prob = torch.sigmoid(actor)[obs]
         bernoulli = Bernoulli(1 - prob)
         action = bernoulli.sample()

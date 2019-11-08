@@ -1,6 +1,7 @@
+import torch
 from misc.sampler import Sampler
 
-total_iteration = 0
+total_iteration, total_test_iteration = 0, 0
 
 
 def tit_for_tat(agent1, agent2, env, log, tb_writer, args, iteration):
@@ -22,92 +23,75 @@ def tit_for_tat(agent1, agent2, env, log, tb_writer, args, iteration):
 def evaluate(agent1, agent2, sampler, args):
     # Sample inner-loop trajectories 
     memory_theta = sampler.collect_trajectories(
-        agent1, agent2, is_inner=True, n_task=1)
+        agent1, agent2, use_theta=True, n_task=1)
 
     # Perform inner-loop update
-    phis1 = agent1.in_lookahead(memory_theta, total_iteration, log=False)
-    phis2 = agent2.in_lookahead(memory_theta, total_iteration, log=False)
+    phis1 = agent1.in_lookahead(memory_theta, total_iteration, log_result=False)
+    phis2 = agent2.in_lookahead(memory_theta, total_iteration, log_result=False)
 
     # Sample outer-loop trajectories 
     memory_phi = sampler.collect_trajectories(
-        agent1, agent2, is_inner=False, n_task=1, phis=[phis1, phis2])
+        agent1, agent2, use_theta=False, n_task=1, phis=[phis1, phis2])
 
     return memory_phi.get_average_reward(i_task=0)
 
-# def meta_test(agent1, agent2, env, args, log):
-#     phi1 = torch.tensor(agent1.theta.detach(), requires_grad=True)
-#     phi2 = torch.tensor(agent2.theta.detach(), requires_grad=True)
-# 
-#     for iteration in range(200):
-#         # Perform inner-loop update
-#         memory_theta = collect_trajectory(env, agent1, agent2, is_inner=False)
-# 
-#         new_phi1 = agent1.in_lookahead_(memory_theta, phi1)
-#         new_phi2 = agent2.in_lookahead_(memory_theta, phi2)
-#         
-#         phi1 = torch.tensor(new_phi1.detach(), requires_grad=True)
-#         phi2 = torch.tensor(new_phi2.detach(), requires_grad=True)
-# 
-#         # Measure performance
-#         score1, score2 = evaluate(agent1, agent2, env, args, iteration)
-# 
-#         # Log performance
-#         log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
-#             iteration, score1, score2))
+
+def meta_test(agent1, agent2, log, tb_writer, args):
+    global total_test_iteration
+
+    sampler = Sampler(log=log, args=args)
+    phi1 = torch.tensor(agent1.theta.detach(), requires_grad=True)
+    phi2 = torch.tensor(agent2.theta.detach(), requires_grad=True)
+
+    for iteration in range(args.n_iteration):
+        # Sample inner-loop trajectories
+        memory_theta = sampler.collect_trajectories(
+            agent1, agent2, use_theta=False, n_task=1, 
+            phis=[[phi1], [phi2]])
+
+        # Perform inner-loop update
+        # but with importance sampling for meta-test
+        new_phi1 = agent1.in_lookahead_with_importance(memory_theta, phi1, total_test_iteration)
+        new_phi2 = agent2.in_lookahead_with_importance(memory_theta, phi2, total_test_iteration)
+        
+        phi1 = torch.tensor(new_phi1.detach(), requires_grad=True)
+        phi2 = torch.tensor(new_phi2.detach(), requires_grad=True)
+
+        # Log performance
+        if iteration % 10 == 0:
+            score1, score2 = evaluate(agent1, agent2, sampler, args)
+            log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
+                total_test_iteration, score1, score2))
+            tb_writer.add_scalars("meta_test/train_reward", {"agent1": score1}, total_test_iteration)
+            tb_writer.add_scalars("meta_test/train_reward", {"agent2": score2}, total_test_iteration)
+
+        # For next iteration
+        total_test_iteration += 1
 
 
-# def collect_trajectory(actor1, actor2, critic1, critic2, act, env, args):
-#     memory = Memory(args)
-# 
-#     obs1, obs2 = env.reset()
-#     for timestep in range(args.ep_max_timesteps):
-#         # Get actions
-#         action1, logprob1, value1 = act(obs1, actor1, critic1)
-#         action2, logprob2, value2 = act(obs2, actor2, critic2)
-# 
-#         # Take step in the environment
-#         (next_obs1, next_obs2), (reward1, reward2), _, _ = env.step((action1, action2))
-# 
-#         # Add to memory
-#         memory.add(
-#             obs1=torch.from_numpy(obs1).long(), 
-#             obs2=torch.from_numpy(obs2).long(),
-#             logprob1=logprob1, 
-#             logprob2=logprob2, 
-#             value1=value1, 
-#             value2=value2, 
-#             reward1=torch.from_numpy(reward1).float(),
-#             reward2=torch.from_numpy(reward2).float())
-# 
-#         # For next timestep
-#         obs1, obs2 = next_obs1, next_obs2
-# 
-#     return memory
-
-
-def train(agent1, agent2, env, log, tb_writer, args):
+def meta_train(agent1, agent2, log, tb_writer, args):
     global total_iteration
 
     while True:
         # Initialize sampler
         sampler = Sampler(log=log, args=args)
 
-        for iteration in range(200):
+        for iteration in range(args.n_iteration):
             # Sample inner-loop trajectories 
             memory_theta = sampler.collect_trajectories(
-                agent1, agent2, is_inner=True, n_task=args.n_task)
+                agent1, agent2, use_theta=True, n_task=args.n_task)
 
             # Perform inner-loop update
-            phis1 = agent1.in_lookahead(memory_theta, total_iteration, log=True)
-            phis2 = agent2.in_lookahead(memory_theta, total_iteration, log=True)
+            phis1 = agent1.in_lookahead(memory_theta, total_iteration, log_result=True)
+            phis2 = agent2.in_lookahead(memory_theta, total_iteration, log_result=True)
 
             # Sample outer-loop trajectories 
             memory_phi = sampler.collect_trajectories(
-                agent1, agent2, is_inner=False, n_task=args.n_task, phis=[phis1, phis2])
+                agent1, agent2, use_theta=False, n_task=args.n_task, phis=[phis1, phis2])
 
             # Perform outer-loop update
-            agent1.out_lookahead(memory_phi, total_iteration, log=True)
-            agent2.out_lookahead(memory_phi, total_iteration, log=True)
+            agent1.out_lookahead(memory_phi, total_iteration)
+            agent2.out_lookahead(memory_phi, total_iteration)
 
             # Log performance
             if iteration % 10 == 0:
@@ -119,5 +103,6 @@ def train(agent1, agent2, env, log, tb_writer, args):
 
             # For next iteration
             total_iteration += 1
-
-        # meta_test(agent1, agent2, env, args, log)
+        
+        # Perform meta-test 
+        meta_test(agent1, agent2, log, tb_writer, args)

@@ -20,7 +20,7 @@ class Sampler(object):
             env = make_env(self.log, self.args)
             self.envs.append(env)
 
-    def collect_trajectories(self, agent1, agent2, is_inner, n_task, phis=None):
+    def collect_trajectories(self, agent1, agent2, use_theta, n_task, phis=None):
         memory = Memory(self.args, n_task)
 
         for i_task in range(n_task):
@@ -28,7 +28,7 @@ class Sampler(object):
             done = False
             while done is False:
                 # Select policies
-                if is_inner:
+                if use_theta:
                     actor1, actor2 = agent1.theta, agent2.theta
                 else:
                     actor1, actor2 = phis[0][i_task], phis[1][i_task]

@@ -23,7 +23,8 @@ class IPDEnv(gym.Env):
         By default, the payout matrix for agent 1 is 
         the transpose of agent 0's matrix"""
         self.log[self.args.log_name].info("Set new payout matrix")
-        noise = np.random.uniform(size=(2, 2), low=-1., high=1.)
+        # noise = np.random.uniform(size=(2, 2), low=-0.5, high=0.5)
+        noise = np.random.uniform(size=(2, 2), low=0, high=0)
         default_payout_matrix = np.array([
             [-2., 0.],
             [-3., -1.]], dtype=np.float32)
@@ -31,6 +32,7 @@ class IPDEnv(gym.Env):
         while self._check_IPD() is False:
             noise = np.random.uniform(size=(2, 2), low=-1., high=1.)
             self.payout_matrix = default_payout_matrix + noise
+        print(self.payout_matrix)
 
     def _check_IPD(self):
         DD_reward = self.payout_matrix[0, 0]

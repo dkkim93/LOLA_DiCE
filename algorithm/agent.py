@@ -10,7 +10,7 @@ class Agent(AgentBase):
         self._set_dim()
         self.set_policy()
 
-    def in_lookahead(self, memory, total_iteration, log):
+    def in_lookahead(self, memory, total_iteration, log_result):
         phis = []
         for i_task in range(memory.n_task):
             # Sample experiences from memory
@@ -22,7 +22,7 @@ class Agent(AgentBase):
             phi = self.theta - self.args.actor_lr_inner * actor_grad
 
             # For logging
-            if i_task == 0 and log:
+            if i_task == 0 and log_result:
                 actor_loss_numpy = actor_loss.cpu().detach().numpy().flatten()[0]
                 self.log[self.args.log_name].info(
                     "Inner loop loss {:.2f} for agent {} at {}".format(
@@ -33,7 +33,26 @@ class Agent(AgentBase):
 
         return phis
 
-    def out_lookahead(self, memory, total_iteration, log):
+    def in_lookahead_with_importance(self, memory, phi, total_iteration):
+        # Sample experiences from memory
+        obs, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent, i_task=0)
+
+        # Get actor loss
+        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
+
+        # Get the importance sampling
+        obs = torch.stack(obs, dim=1)
+        _, logprob_theta, _ = self.act(obs, self.theta, self.critic)
+        logprob_phi = torch.stack(logprob, dim=1)
+        sampling = torch.div(torch.exp(logprob_theta), torch.exp(logprob_phi)).mean().detach()
+
+        # Get grad and update
+        actor_grad = torch.autograd.grad(actor_loss * sampling, (phi), create_graph=False)[0]
+        new_phi = phi - self.args.actor_lr_inner * actor_grad
+
+        return new_phi
+
+    def out_lookahead(self, memory, total_iteration):
         actor_loss, critic_loss = 0, 0
         for i_task in range(memory.n_task):
             # Sample experiences from memory
@@ -54,35 +73,17 @@ class Agent(AgentBase):
         self._update(self.critic_optimizer, critic_loss, is_actor=False)
 
         # For logging
-        if log:
-            actor_loss_numpy = actor_loss.cpu().detach().numpy().flatten()[0]
-            critic_loss_numpy = critic_loss.cpu().detach().numpy().flatten()[0]
-            
-            self.log[self.args.log_name].info(
-                "Outer loop actor loss {:.2f} for agent {} at {}".format(
-                    actor_loss_numpy, self.i_agent, total_iteration))
-            self.log[self.args.log_name].info(
-                "Outer loop critic loss {:.2f} for agent {} at {}".format(
-                    critic_loss_numpy, self.i_agent, total_iteration))
-            self.tb_writer.add_scalars("debug/outer_loop_actor", {str(self.i_agent): actor_loss_numpy}, total_iteration)
-            self.tb_writer.add_scalars("debug/outer_loop_critic", {str(self.i_agent): critic_loss_numpy}, total_iteration)
-
-    # def in_lookahead_with_importance(self, memory, phi):
-    #     # Sample experiences from memory
-    #     obs, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
-
-    #     # Get actor grad and update
-    #     actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
-
-    #     # Get the importance sampling
-    #     obs = torch.stack(obs, dim=1)
-    #     _, logprob_theta, _ = self.act_(obs, self.actor, self.critic)
-    #     logprob_phi = torch.stack(logprob, dim=1)
-    #     sampling = torch.div(torch.exp(logprob_theta), torch.exp(logprob_phi)).mean().detach()
-    #     actor_grad = torch.autograd.grad(actor_loss * sampling, (phi), create_graph=True)[0]
-    #     new_phi = phi - self.args.actor_lr_inner * actor_grad
-
-    #     return new_phi
+        actor_loss_numpy = actor_loss.cpu().detach().numpy().flatten()[0]
+        critic_loss_numpy = critic_loss.cpu().detach().numpy().flatten()[0]
+        
+        self.log[self.args.log_name].info(
+            "Outer loop actor loss {:.2f} for agent {} at {}".format(
+                actor_loss_numpy, self.i_agent, total_iteration))
+        self.log[self.args.log_name].info(
+            "Outer loop critic loss {:.2f} for agent {} at {}".format(
+                critic_loss_numpy, self.i_agent, total_iteration))
+        self.tb_writer.add_scalars("debug/outer_loop_actor", {str(self.i_agent): actor_loss_numpy}, total_iteration)
+        self.tb_writer.add_scalars("debug/outer_loop_critic", {str(self.i_agent): critic_loss_numpy}, total_iteration)
 
     def get_dice_loss(self, logprob, opponent_logprob, value, reward):
         logprob = torch.stack(logprob, dim=1)

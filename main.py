@@ -3,7 +3,7 @@ import argparse
 import torch
 import random
 import numpy as np
-from trainer import train
+from trainer import meta_train
 from misc.utils import set_log, make_env
 from algorithm.agent import Agent
 from tensorboardX import SummaryWriter
@@ -34,8 +34,8 @@ def main(args):
     agent2 = Agent(env, log, tb_writer, args, name="agent2", i_agent=2)
 
     # Start train
-    train(
-        agent1=agent1, agent2=agent2, env=env, log=log, tb_writer=tb_writer, args=args)
+    meta_train(
+        agent1=agent1, agent2=agent2, log=log, tb_writer=tb_writer, args=args)
 
 
 if __name__ == "__main__":
@@ -52,13 +52,16 @@ if __name__ == "__main__":
         "--n-task", type=int, default=16, 
         help="# of task to sample for meta-training")
     parser.add_argument(
+        "--n-iteration", type=int, default=200, 
+        help="# of iterations per task")
+    parser.add_argument(
         "--batch-size", type=int, default=128, 
         help="Batch size for both actor and critic")
     parser.add_argument(
-        "--actor-lr_inner", type=float, default=0.3, 
+        "--actor-lr_inner", type=float, default=0.2, 
         help="Learning rate for actor (inner loop)")
     parser.add_argument(
-        "--actor-lr_outer", type=float, default=0.2, 
+        "--actor-lr_outer", type=float, default=0.1, 
         help="Learning rate for actor (outer loop)")
     parser.add_argument(
         "--critic-lr", type=float, default=0.1, 

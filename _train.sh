@@ -25,5 +25,5 @@ cd $DIR
 python3.6 main.py \
 --env-name "IPD-v0" \
 --seed 0 \
---n-task 8 \
+--n-task 1 \
 --n-lookahead 1
