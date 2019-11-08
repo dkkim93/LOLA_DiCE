@@ -26,10 +26,10 @@ class AgentBase(object):
     def set_policy(self):
         self.log[self.args.log_name].info("[{}] Set policy".format(self.name))
 
-        self.actor = nn.Parameter(torch.zeros(self.actor_input_dim, requires_grad=True))
+        self.theta = nn.Parameter(torch.zeros(self.actor_input_dim, requires_grad=True))
         self.critic = nn.Parameter(torch.zeros(self.critic_input_dim, requires_grad=True))
 
-        self.actor_optimizer = torch.optim.Adam((self.actor,), lr=self.args.actor_lr_outer)
+        self.actor_optimizer = torch.optim.Adam((self.theta,), lr=self.args.actor_lr_outer)
         self.critic_optimizer = torch.optim.Adam((self.critic,), lr=self.args.critic_lr)
 
     def _update(self, optimizer, loss, is_actor):
@@ -40,15 +40,6 @@ class AgentBase(object):
             loss.backward()
         optimizer.step()
 
-    def act(self, obs, actor, critic):
-        obs = torch.from_numpy(obs).long()
-        prob = torch.sigmoid(actor)[obs]
-        bernoulli = Bernoulli(1 - prob)
-        action = bernoulli.sample()
-        logprob = bernoulli.log_prob(action)
-
-        return action.numpy().astype(int), logprob, critic[obs]
-
     def act_(self, obs, actor, critic):
         prob = torch.sigmoid(actor)[obs]
         bernoulli = Bernoulli(1 - prob)
@@ -58,8 +49,19 @@ class AgentBase(object):
         return action.numpy().astype(int), logprob, critic[obs]
 
     def get_action_prob(self, obs):
+        raise ValueError("used?")
         obs = torch.from_numpy(obs).long()
-        prob = torch.sigmoid(self.actor)[obs]
+        prob = torch.sigmoid(self.theta)[obs]
         cooperate_prob = 1. - prob
 
         return cooperate_prob.data.numpy().flatten()[0]
+
+    @staticmethod
+    def act(obs, actor, critic):
+        obs = torch.from_numpy(obs).long()
+        prob = torch.sigmoid(actor)[obs]
+        bernoulli = Bernoulli(1 - prob)
+        action = bernoulli.sample()
+        logprob = bernoulli.log_prob(action)
+
+        return action.numpy().astype(int), logprob, critic[obs]

@@ -24,5 +24,6 @@ cd $DIR
 # Begin experiment
 python3.6 main.py \
 --env-name "IPD-v0" \
---seed 2 \
+--seed 0 \
+--n-task 8 \
 --n-lookahead 1

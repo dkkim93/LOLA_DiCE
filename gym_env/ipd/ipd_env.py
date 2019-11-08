@@ -8,8 +8,9 @@ class IPDEnv(gym.Env):
     Possible actions for each agent are (C)ooperate and (D)efect.
     Ref: https://github.com/alexis-jacq/LOLA_DiCE/blob/master/envs/prisoners_dilemma.py
     """
-    def __init__(self, args):
+    def __init__(self, log, args):
         super(IPDEnv, self).__init__()
+        self.log = log
         self.args = args
 
         self.state_space = [Discrete(5), Discrete(5)]
@@ -21,9 +22,27 @@ class IPDEnv(gym.Env):
         """Payout matrix from agent 0's perspective.
         By default, the payout matrix for agent 1 is 
         the transpose of agent 0's matrix"""
-        self.payout_matrix = np.array([
+        self.log[self.args.log_name].info("Set new payout matrix")
+        noise = np.random.uniform(size=(2, 2), low=-1., high=1.)
+        default_payout_matrix = np.array([
             [-2., 0.],
             [-3., -1.]], dtype=np.float32)
+        self.payout_matrix = default_payout_matrix + noise
+        while self._check_IPD() is False:
+            noise = np.random.uniform(size=(2, 2), low=-1., high=1.)
+            self.payout_matrix = default_payout_matrix + noise
+
+    def _check_IPD(self):
+        DD_reward = self.payout_matrix[0, 0]
+        DC_reward = self.payout_matrix[0, 1]
+        CD_reward = self.payout_matrix[1, 0]
+        CC_reward = self.payout_matrix[1, 1]
+
+        if DC_reward > CC_reward and DC_reward > DD_reward and DC_reward > CD_reward:
+            if CC_reward > DD_reward and CC_reward > CD_reward:
+                if DD_reward > CD_reward:
+                    return True
+        return False
 
     def _set_states(self):
         self.states = np.array([

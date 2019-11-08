@@ -5,7 +5,7 @@ import random
 import numpy as np
 from trainer import train
 from misc.utils import set_log, make_env
-from dice.agent import Agent
+from algorithm.agent import Agent
 from tensorboardX import SummaryWriter
 
 
@@ -21,7 +21,7 @@ def main(args):
     tb_writer = SummaryWriter('./logs/tb_{0}'.format(args.log_name))
 
     # Create env
-    env = make_env(args)
+    env = make_env(log, args)
 
     # Set seeds
     random.seed(args.seed)
@@ -34,7 +34,8 @@ def main(args):
     agent2 = Agent(env, log, tb_writer, args, name="agent2", i_agent=2)
 
     # Start train
-    train(agent1, agent2, env, log, tb_writer, args)
+    train(
+        agent1=agent1, agent2=agent2, env=env, log=log, tb_writer=tb_writer, args=args)
 
 
 if __name__ == "__main__":
@@ -47,6 +48,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n-lookahead", type=int, default=1, 
         help="Number of lookahead")
+    parser.add_argument(
+        "--n-task", type=int, default=16, 
+        help="# of task to sample for meta-training")
     parser.add_argument(
         "--batch-size", type=int, default=128, 
         help="Batch size for both actor and critic")
@@ -89,9 +93,9 @@ if __name__ == "__main__":
 
     # Set log name
     args.log_name = \
-        "env::%s_seed::%s_n_lookahead::%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
+        "env::%s_seed::%s_n_task::%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
         "critic_lr::%s_prefix::%s_log" % (
-            args.env_name, args.seed, args.n_lookahead, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
+            args.env_name, args.seed, args.n_task, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
             args.critic_lr, args.prefix)
 
     main(args=args)
