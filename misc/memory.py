@@ -14,6 +14,7 @@ class Memory():
             "value1", "value2",
             "reward1", "reward2"]
         self.reset()
+        self._set_discount_array()
 
     def reset(self):
         self.storage.clear()
@@ -21,6 +22,15 @@ class Memory():
             self.storage[i_task] = {}
             for keyword in self.keywords:
                 self.storage[i_task][keyword] = []
+
+    def _set_discount_array(self):
+        """Used to form the normalized discounted reward 
+        (see LOLA (Foerester et al., 2017) for details)"""
+        discount_array = []
+        for timestep in range(self.args.ep_max_timesteps):
+            discount_array.append(pow(self.args.discount, timestep))
+        discount_array = np.expand_dims(np.asarray(discount_array), 0)
+        self.discount_array = np.repeat(discount_array, repeats=self.args.batch_size, axis=0)
 
     def add(self, observations, logprobs, values, rewards, i_task):
         self.storage[i_task]["obs1"].append(torch.from_numpy(observations[0]).long())
@@ -51,6 +61,14 @@ class Memory():
             raise ValueError()
 
     def get_average_reward(self, i_task):
-        return \
-            np.mean(torch.stack(self.storage[i_task]["reward1"]).numpy().flatten()), \
-            np.mean(torch.stack(self.storage[i_task]["reward2"]).numpy().flatten())
+        reward1 = torch.stack(self.storage[i_task]["reward1"], dim=1).numpy()
+        reward1 = self.discount_array * reward1
+        reward1 = (1. - self.args.discount) * np.sum(reward1, axis=1)
+        reward1 = np.mean(reward1)
+
+        reward2 = torch.stack(self.storage[i_task]["reward2"], dim=1).numpy()
+        reward2 = self.discount_array * reward2
+        reward2 = (1. - self.args.discount) * np.sum(reward2, axis=1)
+        reward2 = np.mean(reward2)
+
+        return reward1, reward2
