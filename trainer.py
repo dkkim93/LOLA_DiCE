@@ -20,20 +20,23 @@ def tit_for_tat(agent1, agent2, env, log, tb_writer, args, iteration):
         tb_writer.add_scalars("debug/" + key, {"agent2": cooperate_prob}, iteration)
 
 
-def evaluate(agent1, agent2, sampler, args):
+def evaluate(agent1, agent2, sampler, args, iteration):
     # Sample inner-loop trajectories 
     memory_theta = sampler.collect_trajectories(
         agent1, agent2, use_theta=True, n_task=1)
 
-    # Perform inner-loop update
-    phis1 = agent1.in_lookahead(memory_theta, total_iteration, log_result=False)
-    phis2 = agent2.in_lookahead(memory_theta, total_iteration, log_result=False)
+    if iteration == 0:
+        return memory_theta.get_average_reward(i_task=0)
+    else:
+        # Perform inner-loop update
+        phis1 = agent1.in_lookahead(memory_theta, total_iteration, log_result=False)
+        phis2 = agent2.in_lookahead(memory_theta, total_iteration, log_result=False)
 
-    # Sample outer-loop trajectories 
-    memory_phi = sampler.collect_trajectories(
-        agent1, agent2, use_theta=False, n_task=1, phis=[phis1, phis2])
+        # Sample outer-loop trajectories 
+        memory_phi = sampler.collect_trajectories(
+            agent1, agent2, use_theta=False, n_task=1, phis=[phis1, phis2])
 
-    return memory_phi.get_average_reward(i_task=0)
+        return memory_phi.get_average_reward(i_task=0)
 
 
 def meta_test(agent1, agent2, log, tb_writer, args):
@@ -59,7 +62,7 @@ def meta_test(agent1, agent2, log, tb_writer, args):
 
         # Log performance
         if iteration % 10 == 0:
-            score1, score2 = evaluate(agent1, agent2, sampler, args)
+            score1, score2 = evaluate(agent1, agent2, sampler, args, iteration)
             log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
                 total_test_iteration, score1, score2))
             tb_writer.add_scalars("meta_test/train_reward", {"agent1": score1}, total_test_iteration)
@@ -95,7 +98,7 @@ def meta_train(agent1, agent2, log, tb_writer, args):
 
             # Log performance
             if iteration % 10 == 0:
-                score1, score2 = evaluate(agent1, agent2, sampler, args)
+                score1, score2 = evaluate(agent1, agent2, sampler, args, iteration)
                 log[args.log_name].info("At iteration {}, returns: {:.3f}, {:.3f}".format(
                     iteration, score1, score2))
                 tb_writer.add_scalars("train_reward", {"agent1": score1}, total_iteration)

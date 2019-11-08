@@ -46,9 +46,6 @@ if __name__ == "__main__":
         "--n-agent", type=int, default=2, 
         help="Number of agent")
     parser.add_argument(
-        "--n-lookahead", type=int, default=1, 
-        help="Number of lookahead")
-    parser.add_argument(
         "--n-task", type=int, default=16, 
         help="# of task to sample for meta-training")
     parser.add_argument(
@@ -58,10 +55,10 @@ if __name__ == "__main__":
         "--batch-size", type=int, default=128, 
         help="Batch size for both actor and critic")
     parser.add_argument(
-        "--actor-lr_inner", type=float, default=0.2, 
+        "--actor-lr-inner", type=float, default=0.2, 
         help="Learning rate for actor (inner loop)")
     parser.add_argument(
-        "--actor-lr_outer", type=float, default=0.1, 
+        "--actor-lr-outer", type=float, default=0.1, 
         help="Learning rate for actor (outer loop)")
     parser.add_argument(
         "--critic-lr", type=float, default=0.1, 
