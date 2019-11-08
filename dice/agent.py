@@ -1,5 +1,4 @@
 import torch
-from misc.replay_memory import ReplayMemory
 from dice.agent_base import AgentBase
 
 
@@ -9,74 +8,39 @@ class Agent(AgentBase):
             env=env, log=log, tb_writer=tb_writer, args=args, name=name, i_agent=i_agent)
 
         self._set_dim()
-        self._set_policy()
+        self.set_policy()
 
-    def in_lookahead(self, opponent_actor, opponent_critic):
-        """Perform inner update
-        Note that from agent 1's perspective, its opponent is agent 2.
-        Similarly, from agent 2's perspective, its opponent is agent 1.
-        """
-        opponent_memory = ReplayMemory(self.args)
-
-        obs, opponent_obs = self.env.reset()
-        for timestep in range(self.args.ep_max_timesteps):
-            # Get actions
-            action, logprob, value = self.act(obs, self.actor, self.critic)
-            opponent_action, opponent_logprob, opponent_value = self.act(
-                opponent_obs, opponent_actor, opponent_critic)
-
-            # Take step in the environment
-            (next_obs, next_opponent_obs), (reward, opponent_reward), _, _ = \
-                self.env.step((action, opponent_action))
-
-            # Add to memory
-            # Note that this is memory from opponent's perspective
-            # thus opponent's opponent is myself
-            opponent_memory.add(
-                logprob=opponent_logprob, 
-                opponent_logprob=logprob, 
-                value=opponent_value, 
-                reward=torch.from_numpy(opponent_reward).float())
-
-            # For next timestep
-            obs, opponent_obs = next_obs, next_opponent_obs
-
-        # Sample opponent experiences from memory
-        opponent_logprob, logprob, opponent_value, opponent_reward = opponent_memory.sample()
+    def in_lookahead(self, memory):
+        # Sample experiences from memory
+        _, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
         # Get actor grad and update
-        opponent_actor_loss = self.get_dice_loss(opponent_logprob, logprob, opponent_value, opponent_reward)
-        actor_grad = torch.autograd.grad(opponent_actor_loss, (opponent_actor), create_graph=True)[0]
-        opponent_actor = opponent_actor - self.args.actor_lr_inner * actor_grad
+        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
+        actor_grad = torch.autograd.grad(actor_loss, (self.actor), create_graph=True)[0]
+        phi = self.actor - self.args.actor_lr_inner * actor_grad
 
-        return opponent_actor
+        return phi
 
-    def out_lookahead(self, opponent_actor, opponent_critic):
-        memory = ReplayMemory(self.args)
-
-        obs, opponent_obs = self.env.reset()
-        for timestep in range(self.args.ep_max_timesteps):
-            # Get actions
-            action, logprob, value = self.act(obs, self.actor, self.critic)
-            opponent_action, opponent_logprob, opponent_value = self.act(
-                opponent_obs, opponent_actor, opponent_critic)
-
-            # Take step in the environment
-            (next_obs, next_opponent_obs), (reward, opponent_reward), _, _ = \
-                self.env.step((action, opponent_action))
-
-            # Add to memory
-            memory.add(
-                logprob=logprob, 
-                opponent_logprob=opponent_logprob, 
-                value=value, 
-                reward=torch.from_numpy(reward).float())
-
-            # For next timestep
-            obs, opponent_obs = next_obs, next_opponent_obs
-
+    def in_lookahead_(self, memory, phi):
         # Sample experiences from memory
-        logprob, opponent_logprob, value, reward = memory.sample()
+        obs, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
+
+        # Get actor grad and update
+        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
+
+        # Get the importance sampling
+        obs = torch.stack(obs, dim=1)
+        _, logprob_theta, _ = self.act_(obs, self.actor, self.critic)
+        logprob_phi = torch.stack(logprob, dim=1)
+        sampling = torch.div(torch.exp(logprob_theta), torch.exp(logprob_phi)).mean().detach()
+        actor_grad = torch.autograd.grad(actor_loss * sampling, (phi), create_graph=True)[0]
+        new_phi = phi - self.args.actor_lr_inner * actor_grad
+
+        return new_phi
+
+    def out_lookahead(self, memory):
+        # Sample experiences from memory
+        _, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
         # Update actor
         actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
@@ -98,10 +62,12 @@ class Agent(AgentBase):
         discounted_values = value * cum_discount
 
         # Stochastic nodes involved in reward dependencies
-        dependencies = torch.cumsum(logprob + opponent_logprob, dim=1)
+        # dependencies = torch.cumsum(logprob + opponent_logprob, dim=1)
+        dependencies = torch.cumsum(logprob, dim=1)
 
         # Logprob of each stochastic nodes
-        stochastic_nodes = logprob + opponent_logprob
+        # stochastic_nodes = logprob + opponent_logprob
+        stochastic_nodes = logprob
 
         # Dice loss
         dice_loss = torch.mean(torch.sum(self.magic_box(dependencies) * discounted_rewards, dim=1))

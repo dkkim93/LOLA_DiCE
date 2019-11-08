@@ -48,9 +48,6 @@ if __name__ == "__main__":
         "--n-lookahead", type=int, default=1, 
         help="Number of lookahead")
     parser.add_argument(
-        "--algorithm", type=str, choices=["standard", "dice"],
-        default="dice", help="Learning algorithm to train agent")
-    parser.add_argument(
         "--batch-size", type=int, default=128, 
         help="Batch size for both actor and critic")
     parser.add_argument(

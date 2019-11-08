@@ -23,7 +23,9 @@ class AgentBase(object):
         self.log[self.args.log_name].info("[{}] Critic input dim: {}".format(
             self.name, self.critic_input_dim))
 
-    def _set_policy(self):
+    def set_policy(self):
+        self.log[self.args.log_name].info("[{}] Set policy".format(self.name))
+
         self.actor = nn.Parameter(torch.zeros(self.actor_input_dim, requires_grad=True))
         self.critic = nn.Parameter(torch.zeros(self.critic_input_dim, requires_grad=True))
 
@@ -40,6 +42,14 @@ class AgentBase(object):
 
     def act(self, obs, actor, critic):
         obs = torch.from_numpy(obs).long()
+        prob = torch.sigmoid(actor)[obs]
+        bernoulli = Bernoulli(1 - prob)
+        action = bernoulli.sample()
+        logprob = bernoulli.log_prob(action)
+
+        return action.numpy().astype(int), logprob, critic[obs]
+
+    def act_(self, obs, actor, critic):
         prob = torch.sigmoid(actor)[obs]
         bernoulli = Bernoulli(1 - prob)
         action = bernoulli.sample()
