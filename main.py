@@ -42,11 +42,8 @@ if __name__ == "__main__":
 
     # Algorithm
     parser.add_argument(
-        "--n-agent", type=int, default=2, 
-        help="Number of agent")
-    parser.add_argument(
-        "--n-lookahead", type=int, default=1, 
-        help="Number of lookahead")
+        "--opponent-shaping", action="store_true", 
+        help="If True, include opponent shaping in optimization")
     parser.add_argument(
         "--batch-size", type=int, default=128, 
         help="Batch size for both actor and critic")
@@ -89,9 +86,9 @@ if __name__ == "__main__":
 
     # Set log name
     args.log_name = \
-        "env::%s_seed::%s_n_lookahead::%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
+        "env::%s_seed::%s_opponent_shaping::%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
         "critic_lr::%s_prefix::%s_log" % (
-            args.env_name, args.seed, args.n_lookahead, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
+            args.env_name, args.seed, args.opponent_shaping, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
             args.critic_lr, args.prefix)
 
     main(args=args)

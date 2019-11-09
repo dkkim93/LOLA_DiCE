@@ -25,4 +25,5 @@ cd $DIR
 python3.6 main.py \
 --env-name "IPD-v0" \
 --seed 2 \
---n-lookahead 1
+--opponent-shaping \
+--prefix ""

@@ -10,7 +10,7 @@ class Agent(AgentBase):
         self._set_dim()
         self.set_policy()
 
-    def in_lookahead(self, memory):
+    def in_lookahead(self, memory, iteration, logging=True):
         # Sample experiences from memory
         _, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
@@ -18,6 +18,11 @@ class Agent(AgentBase):
         actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
         actor_grad = torch.autograd.grad(actor_loss, (self.actor), create_graph=True)[0]
         phi = self.actor - self.args.actor_lr_inner * actor_grad
+
+        # For logging
+        if logging:
+            self.tb_writer.add_scalars(
+                "debug/inner_loss", {str(self.i_agent): actor_loss.data.numpy()}, iteration)
 
         return phi
 
@@ -38,7 +43,7 @@ class Agent(AgentBase):
 
         return new_phi
 
-    def out_lookahead(self, memory):
+    def out_lookahead(self, memory, iteration):
         # Sample experiences from memory
         _, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
@@ -50,7 +55,14 @@ class Agent(AgentBase):
         critic_loss = self.get_critic_loss(value, reward)
         self._update(self.critic_optimizer, critic_loss, is_actor=False)
 
+        # For logging
+        self.tb_writer.add_scalars(
+            "debug/outer_loss", {str(self.i_agent): actor_loss.data.numpy()}, iteration)
+        self.tb_writer.add_scalars(
+            "debug/critic_loss", {str(self.i_agent): critic_loss.data.numpy()}, iteration)
+
     def get_dice_loss(self, logprob, opponent_logprob, value, reward):
+        # Process data
         logprob = torch.stack(logprob, dim=1)
         opponent_logprob = torch.stack(opponent_logprob, dim=1)
         value = torch.stack(value, dim=1)
@@ -62,14 +74,14 @@ class Agent(AgentBase):
         discounted_values = value * cum_discount
 
         # Stochastic nodes involved in reward dependencies
-        # dependencies = torch.cumsum(logprob + opponent_logprob, dim=1)
-        dependencies = torch.cumsum(logprob, dim=1)
+        if self.args.opponent_shaping:
+            dependencies = torch.cumsum(logprob + opponent_logprob, dim=1)
+            stochastic_nodes = logprob + opponent_logprob
+        else:
+            dependencies = torch.cumsum(logprob, dim=1)
+            stochastic_nodes = logprob
 
-        # Logprob of each stochastic nodes
-        # stochastic_nodes = logprob + opponent_logprob
-        stochastic_nodes = logprob
-
-        # Dice loss
+        # Get Dice loss
         dice_loss = torch.mean(torch.sum(self.magic_box(dependencies) * discounted_rewards, dim=1))
 
         if self.args.use_baseline:
