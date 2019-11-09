@@ -69,6 +69,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use-baseline", type=bool, default=True, 
         help="Use baseline or not")
+    parser.add_argument(
+        "--ours", action="store_true")
 
     # Env
     parser.add_argument(
@@ -94,8 +96,8 @@ if __name__ == "__main__":
     # Set log name
     args.log_name = \
         "env::%s_seed::%s_n_task::%s_batch_size::%s_actor_lr_inner::%s_actor_lr_outer::%s_" \
-        "critic_lr::%s_prefix::%s_log" % (
+        "critic_lr::%s_ours::%s_prefix::%s_log" % (
             args.env_name, args.seed, args.n_task, args.batch_size, args.actor_lr_inner, args.actor_lr_outer,
-            args.critic_lr, args.prefix)
+            args.critic_lr, args.ours, args.prefix)
 
     main(args=args)

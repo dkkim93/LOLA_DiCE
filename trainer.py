@@ -62,7 +62,7 @@ def meta_test(agent1, agent2, log, tb_writer, args):
 
         # Log performance
         if iteration % 10 == 0:
-            score1, score2 = evaluate(agent1, agent2, sampler, args, iteration)
+            score1, score2 = memory_theta.get_average_reward(i_task=0)
             log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
                 total_test_iteration, score1, score2))
             tb_writer.add_scalars("meta_test/train_reward", {"agent1": score1}, total_test_iteration)
@@ -109,3 +109,7 @@ def meta_train(agent1, agent2, log, tb_writer, args):
         
         # Perform meta-test 
         meta_test(agent1, agent2, log, tb_writer, args)
+
+        if total_iteration > 1000:
+            import sys
+            sys.exit()
