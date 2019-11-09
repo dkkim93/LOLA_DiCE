@@ -21,7 +21,7 @@ def main(args):
     tb_writer = SummaryWriter('./logs/tb_{0}'.format(args.log_name))
 
     # Create env
-    env = make_env(args)
+    env = make_env(log, args)
 
     # Set seeds
     random.seed(args.seed)

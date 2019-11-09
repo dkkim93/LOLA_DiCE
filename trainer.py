@@ -56,10 +56,11 @@ def evaluate(agent1, agent2, env, args, iteration):
     return score1, score2
 
 
-def meta_test(agent1, agent2, env, args, log):
+def meta_test(agent1, agent2, env, log, tb_writer, args):
     global test_iteration
     phi1 = torch.tensor(agent1.actor.detach(), requires_grad=True)
     phi2 = torch.tensor(agent2.actor.detach(), requires_grad=True)
+    env.set_payout_matrix()
 
     for iteration in range(200):
         # Perform inner-loop update
@@ -78,8 +79,11 @@ def meta_test(agent1, agent2, env, args, log):
         score1, score2 = evaluate(agent1, agent2, env, args, iteration)
 
         # Log performance
-        log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
-            test_iteration, score1, score2))
+        if iteration % 10 == 0:
+            log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
+                test_iteration, score1, score2))
+            tb_writer.add_scalars("test_reward", {"agent1": score1}, test_iteration)
+            tb_writer.add_scalars("test_reward", {"agent2": score2}, test_iteration)
 
         # For next iteration
         test_iteration += 1
@@ -118,6 +122,8 @@ def train(agent1, agent2, env, log, tb_writer, args):
     global train_iteration
 
     while True:
+        env.set_payout_matrix()
+
         for iteration in range(200):
             # Perform inner-loop update
             memory_theta = collect_trajectory(
@@ -144,12 +150,12 @@ def train(agent1, agent2, env, log, tb_writer, args):
             if iteration % 10 == 0:
                 log[args.log_name].info("At iteration {}, returns: {:.3f}, {:.3f}".format(
                     train_iteration, score1, score2))
-                tb_writer.add_scalars("train_reward", {"agent1": score1}, iteration)
-                tb_writer.add_scalars("train_reward", {"agent2": score2}, iteration)
+                tb_writer.add_scalars("train_reward", {"agent1": score1}, train_iteration)
+                tb_writer.add_scalars("train_reward", {"agent2": score2}, train_iteration)
                 
                 tit_for_tat(agent1, agent2, env, log, tb_writer, args)
 
             # For next iteration
             train_iteration += 1
 
-        meta_test(agent1, agent2, env, args, log)
+        meta_test(agent1, agent2, env, log, tb_writer, args)

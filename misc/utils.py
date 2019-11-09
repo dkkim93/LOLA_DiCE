@@ -25,9 +25,9 @@ def set_log(args):
     return log
 
 
-def make_env(args):
+def make_env(log, args):
     import gym_env  # noqa
-    env = gym.make(args.env_name, args=args)
+    env = gym.make(args.env_name, log=log, args=args)
     env._max_episode_steps = args.ep_max_timesteps
 
     return env
