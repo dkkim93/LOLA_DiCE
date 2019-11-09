@@ -13,13 +13,13 @@ def tit_for_tat(agent1, agent2, env, log, tb_writer, args):
         cooperate_prob = agent1.get_action_prob(value[0])
         log[args.log_name].info(
             "Agent1 at {}: Cooperate prob {:.2f} at iteration {}".format(key, cooperate_prob, train_iteration))
-        tb_writer.add_scalars("debug/" + key, {"agent1": cooperate_prob}, train_iteration)
+        tb_writer.add_scalars("TFT/" + key, {"agent1": cooperate_prob}, train_iteration)
 
         # Agent 2
         cooperate_prob = agent2.get_action_prob(value[1])
         log[args.log_name].info(
             "Agent2 at {}: Cooperate prob {:.2f} at iteration {}".format(key, cooperate_prob, train_iteration))
-        tb_writer.add_scalars("debug/" + key, {"agent2": cooperate_prob}, train_iteration)
+        tb_writer.add_scalars("TFT/" + key, {"agent2": cooperate_prob}, train_iteration)
 
 
 def evaluate(agent1, agent2, env, args, iteration):
