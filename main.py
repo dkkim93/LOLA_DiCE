@@ -48,10 +48,10 @@ if __name__ == "__main__":
         "--batch-size", type=int, default=128, 
         help="Batch size for both actor and critic")
     parser.add_argument(
-        "--actor-lr_inner", type=float, default=0.3, 
+        "--actor-lr_inner", type=float, default=0.5, 
         help="Learning rate for actor (inner loop)")
     parser.add_argument(
-        "--actor-lr_outer", type=float, default=0.2, 
+        "--actor-lr_outer", type=float, default=0.25, 
         help="Learning rate for actor (outer loop)")
     parser.add_argument(
         "--critic-lr", type=float, default=0.1, 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         "--discount", type=float, default=0.96, 
         help="Discount factor")
     parser.add_argument(
-        "--use-baseline", type=bool, default=True, 
+        "--use-baseline", type=bool, default=False, 
         help="Use baseline or not")
 
     # Env
@@ -70,9 +70,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ep-max-timesteps", type=int, default=150,
         help="Episode is terminated when max timestep is reached")
-    parser.add_argument(
-        "--n-action", type=int, default=2,
-        help="# of possible actions")
 
     # Misc
     parser.add_argument(

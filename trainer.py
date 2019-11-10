@@ -159,3 +159,7 @@ def train(agent1, agent2, env, log, tb_writer, args):
             train_iteration += 1
 
         meta_test(agent1, agent2, env, log, tb_writer, args)
+        
+        if train_iteration >= 1000:
+            import sys
+            sys.exit()

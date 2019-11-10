@@ -35,6 +35,11 @@ class AgentBase(object):
     def _update(self, optimizer, loss, is_actor):
         optimizer.zero_grad()
         if is_actor:
+            # Because graph is connected to the opponent
+            # by applying backward, we are also setting gradient 
+            # for the other agent. However, the zero_grad()
+            # for the opponent zeros grad, and sets a correct grad
+            # when it has to do its update
             loss.backward(retain_graph=True)
         else:
             loss.backward()
