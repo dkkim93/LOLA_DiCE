@@ -79,7 +79,7 @@ def meta_test(agent1, agent2, env, log, tb_writer, args):
         score1, score2 = evaluate(agent1, agent2, env, args, iteration)
 
         # Log performance
-        if iteration % 10 == 0:
+        if iteration % 1 == 0:
             log[args.log_name].info("[META-TEST] At iteration {}, returns: {:.3f}, {:.3f}".format(
                 test_iteration, score1, score2))
             tb_writer.add_scalars("test_reward", {"agent1": score1}, test_iteration)

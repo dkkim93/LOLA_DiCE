@@ -22,7 +22,7 @@ print_header "Training network"
 cd $DIR
 
 # Begin experiment
-for seed in {1..100}
+for seed in {1..25}
 do
     python3.6 main.py \
     --env-name "IPD-v0" \
