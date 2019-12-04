@@ -15,7 +15,7 @@ class Agent(AgentBase):
         _, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
         # Get actor grad and update
-        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
+        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward, inner=True)
         actor_grad = torch.autograd.grad(actor_loss, (self.actor), create_graph=True)[0]
         phi = self.actor - self.args.actor_lr_inner * actor_grad
 
@@ -31,7 +31,7 @@ class Agent(AgentBase):
         obs, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
         # Get actor grad and update
-        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
+        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward, inner=True)
 
         # Get the importance sampling
         obs = torch.stack(obs, dim=1)
@@ -48,7 +48,7 @@ class Agent(AgentBase):
         _, logprob, opponent_logprob, value, reward = memory.sample(self.i_agent)
 
         # Update actor
-        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward)
+        actor_loss = self.get_dice_loss(logprob, opponent_logprob, value, reward, inner=False)
         self._update(self.actor_optimizer, actor_loss, is_actor=True)
 
         # Update critic
@@ -61,7 +61,7 @@ class Agent(AgentBase):
         self.tb_writer.add_scalars(
             "debug/critic_loss", {str(self.i_agent): critic_loss.data.numpy()}, iteration)
 
-    def get_dice_loss(self, logprob, opponent_logprob, value, reward):
+    def get_dice_loss(self, logprob, opponent_logprob, value, reward, inner):
         # Process data
         logprob = torch.stack(logprob, dim=1)
         opponent_logprob = torch.stack(opponent_logprob, dim=1)
@@ -74,7 +74,7 @@ class Agent(AgentBase):
         discounted_values = value * cum_discount
 
         # Stochastic nodes involved in reward dependencies
-        if self.args.opponent_shaping:
+        if self.args.opponent_shaping or inner:
             dependencies = torch.cumsum(logprob + opponent_logprob, dim=1)
             stochastic_nodes = logprob + opponent_logprob
         else:
